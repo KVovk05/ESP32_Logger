@@ -1,0 +1,3 @@
+CompileFlags:
+  CompilationDatabase: D:\espIDE\workspace\ESP32_Logger\build
+  Remove: [-m*, -f*]
