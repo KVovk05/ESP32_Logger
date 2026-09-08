@@ -17,7 +17,7 @@ void i2c_bus_init(void)
         .scl_io_num                   = I2C_SCL_PIN,
         .sda_io_num                   = I2C_SDA_PIN,
         .glitch_ignore_cnt            = 7,
-        .flags.enable_internal_pullup = false,   // зовнішні 4.7 кОм, як у Модулі 4.2 -- перевірте Крок 0
+        .flags.enable_internal_pullup = true,   // зовнішні 4.7 кОм, як у Модулі 4.2 -- перевірте Крок 0
     };
     ESP_ERROR_CHECK(i2c_new_master_bus(&bus_config, &s_bus_handle));
     ESP_LOGI(TAG, "Shared I2C bus: SDA=GPIO%d SCL=GPIO%d (3 devices)", I2C_SDA_PIN, I2C_SCL_PIN);

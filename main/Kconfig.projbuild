@@ -1,14 +1,14 @@
-# put here your custom config value
-menu "Example Configuration"
-config ESP_WIFI_SSID
-    string "WiFi SSID"
-    default "myssid"
-    help
-	SSID (network name) for the example to connect to.
+menu "IoT Logger — MQTT Configuration"
 
-config ESP_WIFI_PASSWORD
-    string "WiFi Password"
-    default "mypassword"
-    help
-	WiFi password (WPA or WPA2) for the example to use.
+    config MQTT_BROKER_URI
+        string "MQTT broker URI (mqtt://IP:1883)"
+        default "mqtt://192.168.1.10:1883"
+        help
+            IP-адреса комп'ютера з Mosquitto (Частина 1) у тій самій Wi-Fi
+            мережі, куди підключився логер через provisioning (Частина 0).
+
+    config MQTT_CLIENT_IDENTIFIER
+        string "MQTT Client ID"
+        default "esp32s3-iot-logger-01"
+
 endmenu
