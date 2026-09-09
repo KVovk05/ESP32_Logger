@@ -19,6 +19,7 @@ static const char *TAG = "CTRL_ADC";
 static adc_continuous_handle_t adc_handle;
 static TaskHandle_t adc_task_handle;
 static volatile float s_threshold_c = 25.0f;   // безпечне значення за замовчуванням до першого блоку
+static volatile uint32_t s_adc_raw = 0;        // останній усереднений відлік АЦП, 0-4095
 
 static bool IRAM_ATTR adc_conv_done_cb(adc_continuous_handle_t handle,
                                         const adc_continuous_evt_data_t *edata, void *user_data)
@@ -49,6 +50,7 @@ static void adc_read_task(void *arg)
 
         float frac = avg_raw / 4095.0f;                     // 0.0 .. 1.0
         s_threshold_c = THRESH_MIN_C + frac * (THRESH_MAX_C - THRESH_MIN_C);
+        s_adc_raw = avg_raw;
     }
 }
 
@@ -73,13 +75,18 @@ void ctrl_adc_init(void)
     ESP_ERROR_CHECK(adc_continuous_config(adc_handle, &dig_cfg));
 
     adc_continuous_evt_cbs_t cbs = { .on_conv_done = adc_conv_done_cb };
-    ESP_ERROR_CHECK(adc_continuous_register_event_callbacks(adc_handle, &cbs, NULL));
+    ESP_ERROR_CHECK(adc_continuous_register_event_callbacks(adc_handle, &cbs, NULL));   // 3-й арг. -- ЕРАТА п.2
 
     xTaskCreate(adc_read_task, "adc_read_task", 4096, NULL, 5, &adc_task_handle);
-    ESP_LOGI(TAG, "ADC1 continuous+DMA ready: GPIO4, lim %.0f-%.0f C", THRESH_MIN_C, THRESH_MAX_C);
+    ESP_LOGI(TAG, "ADC1 continuous+DMA ready: GPIO4, threshold %.0f-%.0f`C", THRESH_MIN_C, THRESH_MAX_C);
 }
 
 float ctrl_adc_get_threshold_c(void)
 {
     return s_threshold_c;   // головний цикл (Крок 9) лише ЧИТАЄ -- жодного опитування АЦП з його боку
+}
+
+uint32_t ctrl_adc_get_raw(void)
+{
+    return s_adc_raw;
 }
