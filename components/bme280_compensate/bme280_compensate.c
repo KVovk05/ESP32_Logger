@@ -1,5 +1,5 @@
 #include "include/bme280_compensate.h"
-#
+
 static uint16_t u16_le(const uint8_t *b) { return (uint16_t)(b[0] | (b[1] << 8)); }
 
 void bme280_parse_calib(bme280_calib_t *c, const uint8_t buf_tp[26], const uint8_t buf_h[7])

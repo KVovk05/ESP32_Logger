@@ -5,7 +5,7 @@
 #include "freertos/task.h"
 
 #define ADC_UNIT       ADC_UNIT_1
-#define ADC_CHANNEL    ADC_CHANNEL_3      // GPIO4 -- та сама ручка, що й у Модулі 4.6
+#define ADC_CHANNEL    ADC_CHANNEL_3      // GPIO4
 #define ADC_ATTEN      ADC_ATTEN_DB_12
 #define ADC_BIT_WIDTH  ADC_BITWIDTH_12
 
@@ -18,8 +18,8 @@
 static const char *TAG = "CTRL_ADC";
 static adc_continuous_handle_t adc_handle;
 static TaskHandle_t adc_task_handle;
-static volatile float s_threshold_c = 25.0f;   // безпечне значення за замовчуванням до першого блоку
-static volatile uint32_t s_adc_raw = 0;        // останній усереднений відлік АЦП, 0-4095
+static volatile float s_threshold_c = 25.0f;
+static volatile uint32_t s_adc_raw = 0;
 
 static bool IRAM_ATTR adc_conv_done_cb(adc_continuous_handle_t handle,
                                         const adc_continuous_evt_data_t *edata, void *user_data)
@@ -37,7 +37,7 @@ static void adc_read_task(void *arg)
     ESP_ERROR_CHECK(adc_continuous_start(adc_handle));
 
     while (1) {
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);   // спати, поки DMA не наповнить черговий блок
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
         esp_err_t err = adc_continuous_read(adc_handle, result, FRAME_SIZE, &bytes_read, 0);
         if (err != ESP_OK) continue;
@@ -46,9 +46,9 @@ static void adc_read_task(void *arg)
         int count = bytes_read / sizeof(adc_digi_output_data_t);
         uint32_t sum = 0;
         for (int i = 0; i < count; i++) sum += data[i].type2.data;
-        uint32_t avg_raw = sum / count;                     // усереднення блоку -- згладжує шум ручки
+        uint32_t avg_raw = sum / count;
 
-        float frac = avg_raw / 4095.0f;                     // 0.0 .. 1.0
+        float frac = avg_raw / 4095.0f;
         s_threshold_c = THRESH_MIN_C + frac * (THRESH_MAX_C - THRESH_MIN_C);
         s_adc_raw = avg_raw;
     }
@@ -75,7 +75,7 @@ void ctrl_adc_init(void)
     ESP_ERROR_CHECK(adc_continuous_config(adc_handle, &dig_cfg));
 
     adc_continuous_evt_cbs_t cbs = { .on_conv_done = adc_conv_done_cb };
-    ESP_ERROR_CHECK(adc_continuous_register_event_callbacks(adc_handle, &cbs, NULL));   // 3-й арг. -- ЕРАТА п.2
+    ESP_ERROR_CHECK(adc_continuous_register_event_callbacks(adc_handle, &cbs, NULL));
 
     xTaskCreate(adc_read_task, "adc_read_task", 4096, NULL, 5, &adc_task_handle);
     ESP_LOGI(TAG, "ADC1 continuous+DMA ready: GPIO4, threshold %.0f-%.0f`C", THRESH_MIN_C, THRESH_MAX_C);
@@ -83,7 +83,7 @@ void ctrl_adc_init(void)
 
 float ctrl_adc_get_threshold_c(void)
 {
-    return s_threshold_c;   // головний цикл (Крок 9) лише ЧИТАЄ -- жодного опитування АЦП з його боку
+    return s_threshold_c;
 }
 
 uint32_t ctrl_adc_get_raw(void)

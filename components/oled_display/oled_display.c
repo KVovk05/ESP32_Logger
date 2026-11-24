@@ -1,7 +1,7 @@
 #include "oled_display.h"
 #include "i2c_bus.h"
 #include "u8g2.h"
-#include "u8g2_hal.h"      // готовий HAL-міст з Модуля 4.2 (setup_u8g2.sh)
+#include "u8g2_hal.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -13,8 +13,6 @@
 static i2c_master_dev_handle_t s_oled_handle;
 static u8g2_t u8g2;
 
-// -- бітмапи вовка, 32x32, XBM-порядок -- дослівно з Модуля 4.3,
-// u8g2_clock_and_wolf_logo_EXAMPLE.md, Частина 2 (2 кадри для моргання) --
 static const unsigned char wolf_logo_32x32_open[] U8X8_PROGMEM = {
     0x00, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x0C, 0x78, 0x00, 0x00, 0x1E,
     0xF8, 0x00, 0x00, 0x1F, 0xFC, 0x01, 0x80, 0x3F, 0xFC, 0x03, 0xC0, 0x3F,
@@ -28,7 +26,7 @@ static const unsigned char wolf_logo_32x32_open[] U8X8_PROGMEM = {
     0x00, 0xF8, 0x1F, 0x00, 0x00, 0xF0, 0x0F, 0x00, 0x00, 0xE0, 0x07, 0x00,
     0x00, 0xC0, 0x03, 0x00, 0x00, 0x80, 0x01, 0x00,
 };
-// Той самий силует, без вирізів-очей (рядки 12-14) -- "моргання" (очі заплющені)
+
 static const unsigned char wolf_logo_32x32_blink[] U8X8_PROGMEM = {
     0x00, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x0C, 0x78, 0x00, 0x00, 0x1E,
     0xF8, 0x00, 0x00, 0x1F, 0xFC, 0x01, 0x80, 0x3F, 0xFC, 0x03, 0xC0, 0x3F,
@@ -55,12 +53,11 @@ void oled_display_init(void)
     u8g2_hal_set_i2c_device(s_oled_handle);
     u8g2_Setup_ssd1306_i2c_128x64_noname_f(&u8g2, U8G2_R0, u8g2_esp32_i2c_byte_cb, u8g2_esp32_gpio_and_delay_cb);
     
-    // Вказуємо адресу 0x3C зі зсувом (0x3C << 1 = 0x78)
     u8x8_SetI2CAddress(&u8g2.u8x8, SSD1306_ADDR << 1);
 
     u8g2_InitDisplay(&u8g2);
     u8g2_SetPowerSave(&u8g2, 0);
-    u8g2_ClearDisplay(&u8g2); // очищаємо випадкове сміття з GDRAM дисплея
+    u8g2_ClearDisplay(&u8g2);
 }
 void oled_play_wolf_boot_animation(void)
 {
@@ -69,7 +66,7 @@ void oled_play_wolf_boot_animation(void)
 
     while (esp_timer_get_time() - start < DURATION_US) {
         u8g2_ClearBuffer(&u8g2);
-        u8g2_DrawXBM(&u8g2, 48, 16, 32, 32, wolf_logo_32x32_open);    // 48=(128-32)/2, 16=(64-32)/2 -- по центру
+        u8g2_DrawXBM(&u8g2, 48, 16, 32, 32, wolf_logo_32x32_open);
         u8g2_SendBuffer(&u8g2);
         vTaskDelay(pdMS_TO_TICKS(500));
 
@@ -93,9 +90,9 @@ void oled_draw_dashboard(const rtc_time_t *t,
              threshold_c, led_on ? "ON" : "OFF", led_source);
 
     u8g2_ClearBuffer(&u8g2);
-    u8g2_SetFont(&u8g2, u8g2_font_logisoso24_tr);   // великий шрифт для часу -- та сама ідея, що в Модулі 4.3
+    u8g2_SetFont(&u8g2, u8g2_font_logisoso24_tr);
     u8g2_DrawStr(&u8g2, 4, 26, line_time);
-    u8g2_SetFont(&u8g2, u8g2_font_6x10_tr);         // менший шрифт -- три рядки показань і статусу
+    u8g2_SetFont(&u8g2, u8g2_font_6x10_tr);
     u8g2_DrawStr(&u8g2, 0, 40, line_i2c);
     u8g2_DrawStr(&u8g2, 0, 52, line_spi);
     u8g2_DrawStr(&u8g2, 0, 63, line_status);

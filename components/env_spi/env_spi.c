@@ -6,7 +6,6 @@
 #include "freertos/task.h"
 #include <string.h>
 
-// Твої призначені піни
 #define PIN_SCLK       18
 #define PIN_MISO       17
 #define PIN_MOSI       5
@@ -22,12 +21,11 @@ static const char *TAG = "ENV_SPI";
 static spi_device_handle_t bme;
 static bme280_calib_t calib;
 
-// Спосіб А (комбінована транзакція) -- burst-read
 static esp_err_t bme280_read_regs(uint8_t reg, uint8_t *out, size_t len)
 {
     uint8_t tx[1 + len];
     uint8_t rx[1 + len];
-    tx[0] = reg | 0x80;               // read-біт (біт 7 = 1)
+    tx[0] = reg | 0x80;
     memset(&tx[1], 0x00, len);
     spi_transaction_t t = {
         .length = 8 * (1 + len),
@@ -41,7 +39,7 @@ static esp_err_t bme280_read_regs(uint8_t reg, uint8_t *out, size_t len)
 
 static esp_err_t bme280_write_reg(uint8_t reg, uint8_t value)
 {
-    uint8_t tx[2] = { (uint8_t)(reg & 0x7F), value };   // write-біт (біт 7 = 0)
+    uint8_t tx[2] = { (uint8_t)(reg & 0x7F), value };
     spi_transaction_t t = {
         .length = 16,
         .tx_buffer = tx
@@ -62,8 +60,8 @@ void env_spi_init(void)
     ESP_ERROR_CHECK(spi_bus_initialize(SPI_HOST_USED, &buscfg, SPI_DMA_CH_AUTO));
 
     spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = 1 * 1000 * 1000,   // 1 МГц
-        .mode = 0,                            // CPOL=0, CPHA=0 (Mode 0)
+        .clock_speed_hz = 1 * 1000 * 1000,
+        .mode = 0,
         .spics_io_num = PIN_CS,
         .queue_size = 1,
     };
@@ -71,11 +69,7 @@ void env_spi_init(void)
 
     uint8_t chip_id = 0;
     ESP_ERROR_CHECK(bme280_read_regs(REG_ID, &chip_id, 1));
-    ESP_LOGI(TAG, "SPI BME280 id=0x%02X (Waited 0x60)", chip_id);
-
-//    // Reset + затримка на перезавантаження NVM-регістрів
-//    bme280_write_reg(0xE0, 0xB6);
-//    vTaskDelay(pdMS_TO_TICKS(5));
+    ESP_LOGI(TAG, "SPI BME280 id=0x%02X (expected 0x60)", chip_id);
 
     uint8_t buf_tp[26], buf_h[7];
     ESP_ERROR_CHECK(bme280_read_regs(0x88, buf_tp, sizeof(buf_tp)));
@@ -87,22 +81,18 @@ void env_spi_init(void)
 
 bool env_spi_read(float *temp_C, float *press_hPa, float *hum_RH)
 {
-    if (bme280_write_reg(REG_CTRL_HUM, 0x01) != ESP_OK) return false;                    // osrs_h = x1
-    uint8_t ctrl_meas = (1 << 5) | (1 << 2) | 0x01;                                       // forced mode, osrs_t=x1, osrs_p=x1
+    if (bme280_write_reg(REG_CTRL_HUM, 0x01) != ESP_OK) return false;
+    uint8_t ctrl_meas = (1 << 5) | (1 << 2) | 0x01;
     if (bme280_write_reg(REG_CTRL_MEAS, ctrl_meas) != ESP_OK) return false;
     vTaskDelay(pdMS_TO_TICKS(10));
 
     uint8_t raw[8];
     if (bme280_read_regs(REG_PRESS_MSB, raw, sizeof(raw)) != ESP_OK) return false;
-	
-	ESP_LOGI("SPI_RAW", "raw[0..7]: %02X %02X %02X %02X %02X %02X %02X %02X | calib T1=%u", 
-	             raw[0], raw[1], raw[2], raw[3], raw[4], raw[5], raw[6], raw[7], calib.dig_T1);
-    // Збірка сирих значень з регістрів 0xF7..0xFE
+
     int32_t adc_P = ((int32_t)raw[0] << 12) | ((int32_t)raw[1] << 4) | (raw[2] >> 4);
     int32_t adc_T = ((int32_t)raw[3] << 12) | ((int32_t)raw[4] << 4) | (raw[5] >> 4);
     int32_t adc_H = ((int32_t)raw[6] << 8)  |  (int32_t)raw[7];
 
-    // Порядок критичний: T перша (рахує calib.t_fine для P і H)
     int32_t  T_int    = bme280_compensate_T(&calib, adc_T);
     uint32_t P_q24_8  = bme280_compensate_P(&calib, adc_P);
     uint32_t H_q22_10 = bme280_compensate_H(&calib, adc_H);

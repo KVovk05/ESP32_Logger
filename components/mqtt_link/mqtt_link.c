@@ -51,21 +51,19 @@ void mqtt_link_init(mqtt_link_led_cb_t on_led_command, mqtt_link_time_synced_cb_
 {
     s_led_cb = on_led_command;
 
-    // Wi-Fi вже підключений (wifi_prov, Частина 0) -- синхронізуємо час один раз, щоб "засіяти" Tiny RTC (Крок 3).
-    // Звичайний mqtt:// не потребує коректного часу для самого підключення -- це лише для RTC.
     esp_sntp_config_t sntp_cfg = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
     esp_netif_sntp_init(&sntp_cfg);
     if (esp_netif_sntp_sync_wait(pdMS_TO_TICKS(10000)) == ESP_OK && on_time_synced != NULL) {
         on_time_synced();
     }
 
-	esp_mqtt_client_config_t mqtt_cfg = {
-	        .broker.address.uri = CONFIG_MQTT_BROKER_URI,
-	        .credentials.client_id = CONFIG_MQTT_CLIENT_IDENTIFIER,
-	        .session.keepalive = 5,             // 5 секунд пінг
-	        .network.timeout_ms = 1000,         // Таймаут на операції сокета 1 секунда (не зависати назавжди!)
-	        .network.reconnect_timeout_ms = 2000, // Спроба перепідключення кожні 2 секунди
-	    };
+    esp_mqtt_client_config_t mqtt_cfg = {
+        .broker.address.uri = CONFIG_MQTT_BROKER_URI,
+        .credentials.client_id = CONFIG_MQTT_CLIENT_IDENTIFIER,
+        .session.keepalive = 5,
+        .network.timeout_ms = 1000,
+        .network.reconnect_timeout_ms = 2000,
+    };
     s_client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(s_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     esp_mqtt_client_start(s_client);
